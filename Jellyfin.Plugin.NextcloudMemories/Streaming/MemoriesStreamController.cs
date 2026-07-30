@@ -64,7 +64,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Streaming
         {
             if (!_tokens.Validate(fileId, token))
             {
-                _logger.LogWarning("Ungueltiges Stream-Token fuer Datei {FileId}.", fileId);
+                _logger.LogWarning("Invalid stream token for file {FileId}.", fileId);
                 return Unauthorized();
             }
 
@@ -121,7 +121,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Streaming
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Stream fuer Datei {FileId} abgebrochen.", fileId);
+                _logger.LogWarning(ex, "Stream for file {FileId} aborted.", fileId);
             }
 
             return new EmptyResult();

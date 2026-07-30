@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>Nextcloud Memories</title>
@@ -14,152 +14,154 @@
 
             <form id="NextcloudMemoriesConfigForm">
 
-                <h2>Verbindung</h2>
+                <h2>Connection</h2>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="url" id="ServerUrl" label="Nextcloud-URL" required />
-                    <div class="fieldDescription">Zum Beispiel https://cloud.example.de (ohne /apps/memories).</div>
+                    <input is="emby-input" type="url" id="ServerUrl" label="Nextcloud URL" required />
+                    <div class="fieldDescription">For example https://cloud.example.com (without /apps/memories).</div>
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="text" id="Username" label="Benutzername" required />
+                    <input is="emby-input" type="text" id="Username" label="User name" required />
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="password" id="AppPassword" label="App-Passwort" required />
+                    <input is="emby-input" type="password" id="AppPassword" label="App password" required />
                     <div class="fieldDescription">
-                        Nextcloud &rarr; Einstellungen &rarr; Sicherheit &rarr; Geräte &amp; Sitzungen &rarr;
-                        neues App-Passwort erzeugen. Nicht das Login-Passwort verwenden.
+                        Nextcloud &rarr; Settings &rarr; Security &rarr; Devices &amp; sessions &rarr;
+                        create a new app password. Do not use your login password.
                     </div>
                 </div>
 
                 <div>
                     <button is="emby-button" type="button" id="TestConnection" class="raised">
-                        <span>Verbindung testen</span>
+                        <span>Test connection</span>
                     </button>
                     <div id="TestResult" class="fieldDescription" style="margin-top:0.5em;"></div>
+                    <div class="fieldDescription">Save first — the test reads the stored configuration.</div>
                 </div>
 
-                <h2>Bibliothek</h2>
+                <h2>Library</h2>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="text" id="CacheRoot" label="Cache-Verzeichnis" required />
+                    <input is="emby-input" type="text" id="CacheRoot" label="Cache directory" required />
                     <div class="fieldDescription">
-                        Wird vom Jellyfin-Prozess beschrieben und als Bibliothekspfad verwendet.
-                        Bei Docker muss dieser Pfad ein persistentes Volume sein.
+                        Written to by the Jellyfin process and used as the library path.
+                        On Docker this must be a persistent volume, given as the path inside the container.
                     </div>
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="text" id="LibraryName" label="Name der Bibliothek" />
+                    <input is="emby-input" type="text" id="LibraryName" label="Library name" />
                 </div>
 
                 <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="AutoCreateLibrary" />
-                    <span>Bibliothek automatisch anlegen</span>
+                    <span>Create the Jellyfin library automatically</span>
                 </label>
 
                 <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="ScanAfterSync" />
-                    <span>Nach jedem Sync einen Bibliotheksscan starten</span>
+                    <span>Queue a library scan after every sync</span>
                 </label>
 
-                <h2>Inhalte</h2>
+                <h2>Content</h2>
 
                 <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="EnableTimeline" />
-                    <span>Zeitachse spiegeln (Jahr/Monat-Ordner)</span>
+                    <span>Mirror the timeline (year/month folders)</span>
                 </label>
 
                 <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="EnableAlbums" />
-                    <span>Alben spiegeln</span>
+                    <span>Mirror albums</span>
                 </label>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="text" id="DateFrom" label="Nur ab Datum (JJJJ-MM-TT)" />
+                    <input is="emby-input" type="text" id="DateFrom" label="Only from date (YYYY-MM-DD)" />
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="text" id="DateTo" label="Nur bis Datum (JJJJ-MM-TT)" />
+                    <input is="emby-input" type="text" id="DateTo" label="Only until date (YYYY-MM-DD)" />
                 </div>
 
                 <div style="margin-top:1em;">
                     <button is="emby-button" type="button" id="LoadAlbums" class="raised">
-                        <span>Alben laden</span>
+                        <span>Load albums</span>
                     </button>
                     <div class="fieldDescription">
-                        Ohne Auswahl werden alle Alben gespiegelt.
+                        With nothing selected, all albums are mirrored.
                     </div>
                     <div id="AlbumList" style="margin-top:0.5em;"></div>
                 </div>
 
-                <h2>Dateien</h2>
+                <h2>Files</h2>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="number" id="PreviewSize" label="Vorschaugröße in Pixel" min="256" max="8192" />
+                    <input is="emby-input" type="number" id="PreviewSize" label="Preview size in pixels" min="256" max="8192" />
                     <div class="fieldDescription">
-                        2048 ist ein guter Kompromiss. Höhere Werte brauchen deutlich mehr Speicherplatz.
+                        Match this to Nextcloud's <code>preview_max_x</code>. Larger values are capped by
+                        Nextcloud anyway and miss its preview cache, which makes every sync much slower.
                     </div>
                 </div>
 
                 <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="DownloadOriginals" />
-                    <span>Originaldateien statt Vorschauen laden (HEIC/RAW werden ggf. nicht dargestellt)</span>
+                    <span>Download originals instead of previews (HEIC/RAW may not render)</span>
                 </label>
 
                 <div class="selectContainer">
                     <select is="emby-select" id="VideoMode" label="Videos">
-                        <option value="Strm">Als .strm über den Jellyfin-Proxy streamen</option>
-                        <option value="Download">Originaldateien herunterladen</option>
-                        <option value="Skip">Videos ignorieren</option>
+                        <option value="Strm">Stream as .strm through the Jellyfin proxy</option>
+                        <option value="Download">Download the original files</option>
+                        <option value="Skip">Ignore videos</option>
                     </select>
                 </div>
 
                 <div class="selectContainer">
-                    <select is="emby-select" id="LinkMode" label="Albumeinträge">
-                        <option value="Symlink">Symlink auf die Zeitachsen-Datei</option>
-                        <option value="Copy">Kopie anlegen</option>
+                    <select is="emby-select" id="LinkMode" label="Album entries">
+                        <option value="Symlink">Symlink to the timeline file</option>
+                        <option value="Copy">Create a copy</option>
                     </select>
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="url" id="JellyfinBaseUrl" label="Basis-URL dieses Jellyfin-Servers" />
+                    <input is="emby-input" type="url" id="JellyfinBaseUrl" label="Base URL of this Jellyfin server" />
                     <div class="fieldDescription">
-                        Wird in die .strm-Dateien geschrieben. Standard: http://127.0.0.1:8096
+                        Written into the generated .strm files. Default: http://127.0.0.1:8096
                     </div>
                 </div>
 
-                <h2>Erweitert</h2>
+                <h2>Advanced</h2>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="number" id="ParallelDownloads" label="Parallele Downloads" min="1" max="16" />
+                    <input is="emby-input" type="number" id="ParallelDownloads" label="Parallel downloads" min="1" max="16" />
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="number" id="SyncIntervalHours" label="Sync-Intervall in Stunden" min="0" max="168" />
+                    <input is="emby-input" type="number" id="SyncIntervalHours" label="Sync interval in hours" min="0" max="168" />
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="number" id="RequestTimeoutSeconds" label="HTTP-Timeout in Sekunden" min="5" max="3600" />
+                    <input is="emby-input" type="number" id="RequestTimeoutSeconds" label="HTTP timeout in seconds" min="5" max="3600" />
                 </div>
 
                 <div class="inputContainer">
-                    <input is="emby-input" type="text" id="AlbumQueryParameter" label="Album-Filterparameter" />
+                    <input is="emby-input" type="text" id="AlbumQueryParameter" label="Album filter parameter" />
                     <div class="fieldDescription">
-                        Standard: albums. Falls Alben leer bleiben oder zu viele Dateien enthalten,
-                        prüfe GET /apps/memories/api/describe deiner Memories-Version.
+                        Default: albums. If albums stay empty or contain far too many files,
+                        check GET /apps/memories/api/describe on your Memories version.
                     </div>
                 </div>
 
                 <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="FetchDetailedMetadata" />
-                    <span>Tags, Personen und Orte pro Foto abrufen (ein zusätzlicher Request je Foto)</span>
+                    <span>Fetch tags, people and places per photo (one extra request per photo)</span>
                 </label>
 
                 <div style="margin-top:1.5em;">
                     <button is="emby-button" type="submit" class="raised button-submit block">
-                        <span>Speichern</span>
+                        <span>Save</span>
                     </button>
                 </div>
 
@@ -169,13 +171,13 @@
 
                 <div style="margin-top:0.5em;">
                     <button is="emby-button" type="button" id="RunSync" class="raised">
-                        <span>Jetzt synchronisieren</span>
+                        <span>Sync now</span>
                     </button>
                     <button is="emby-button" type="button" id="StopSync" class="raised">
-                        <span>Synchronisierung abbrechen</span>
+                        <span>Cancel sync</span>
                     </button>
                     <button is="emby-button" type="button" id="RefreshStatus" class="raised">
-                        <span>Status aktualisieren</span>
+                        <span>Refresh status</span>
                     </button>
                 </div>
 
@@ -226,10 +228,10 @@
                     dataType: 'json'
                 }).then(function (status) {
                     page.querySelector('#StatusBox').innerHTML =
-                        'Läuft gerade: <b>' + (status.IsRunning ? 'ja' : 'nein') + '</b><br/>' +
-                        'Gespiegelte Dateien: <b>' + status.MirroredFiles + '</b><br/>' +
-                        'Letzter Sync: <b>' + (status.LastSyncUtc || 'nie') + '</b><br/>' +
-                        'Ergebnis: ' + (status.LastSyncResult || '-') + '<br/>' +
+                        'Currently running: <b>' + (status.IsRunning ? 'yes' : 'no') + '</b><br/>' +
+                        'Mirrored files: <b>' + status.MirroredFiles + '</b><br/>' +
+                        'Last sync: <b>' + (status.LastSyncUtc || 'never') + '</b><br/>' +
+                        'Result: ' + (status.LastSyncResult || '-') + '<br/>' +
                         'Cache: <code>' + (status.CacheRoot || '-') + '</code>';
                 });
             }
@@ -286,7 +288,7 @@
                     config.EnableAlbums = checked('EnableAlbums');
                     config.DateFrom = val('DateFrom');
                     config.DateTo = val('DateTo');
-                    config.PreviewSize = parseInt(val('PreviewSize'), 10) || 2048;
+                    config.PreviewSize = parseInt(val('PreviewSize'), 10) || 1024;
                     config.DownloadOriginals = checked('DownloadOriginals');
                     config.VideoMode = val('VideoMode');
                     config.LinkMode = val('LinkMode');
@@ -310,15 +312,15 @@
 
             page.querySelector('#TestConnection').addEventListener('click', function () {
                 var target = page.querySelector('#TestResult');
-                target.textContent = 'Teste ...';
+                target.textContent = 'Testing ...';
                 ApiClient.ajax({
                     type: 'POST',
                     url: ApiClient.getUrl('NextcloudMemories/TestConnection'),
                     dataType: 'json'
                 }).then(function (result) {
-                    target.textContent = (result.Success ? 'OK: ' : 'Fehler: ') + result.Message;
+                    target.textContent = (result.Success ? 'OK: ' : 'Error: ') + result.Message;
                 }, function () {
-                    target.textContent = 'Fehler: Anfrage fehlgeschlagen. Zuerst speichern.';
+                    target.textContent = 'Error: request failed. Save the settings first.';
                 });
             });
 
@@ -334,7 +336,7 @@
                         Dashboard.hideLoadingMsg();
                     }, function () {
                         Dashboard.hideLoadingMsg();
-                        Dashboard.alert('Alben konnten nicht geladen werden. Verbindung zuerst speichern und testen.');
+                        Dashboard.alert('Could not load albums. Save and test the connection first.');
                     });
                 });
             });
@@ -344,10 +346,10 @@
                     type: 'POST',
                     url: ApiClient.getUrl('NextcloudMemories/Sync')
                 }).then(function () {
-                    Dashboard.alert('Sync gestartet. Fortschritt siehe Dashboard → Geplante Aufgaben und Protokolle.');
+                    Dashboard.alert('Sync started. Watch the progress under Dashboard → Scheduled Tasks and the logs.');
                     setTimeout(loadStatus, 2000);
                 }, function () {
-                    Dashboard.alert('Sync konnte nicht gestartet werden.');
+                    Dashboard.alert('Could not start the sync.');
                 });
             });
 
@@ -356,11 +358,10 @@
                     type: 'POST',
                     url: ApiClient.getUrl('NextcloudMemories/Stop')
                 }).then(function () {
-                    Dashboard.alert('Abbruch angefordert. Bereits geladene Dateien bleiben erhalten, ' +
-                        'der nächste Lauf setzt dort fort.');
+                    Dashboard.alert('Cancellation requested. Files downloaded so far are kept and the next run resumes.');
                     setTimeout(loadStatus, 3000);
                 }, function () {
-                    Dashboard.alert('Es läuft derzeit keine Synchronisierung.');
+                    Dashboard.alert('No sync is currently running.');
                 });
             });
 

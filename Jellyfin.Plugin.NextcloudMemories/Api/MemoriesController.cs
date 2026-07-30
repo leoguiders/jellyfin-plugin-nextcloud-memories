@@ -107,7 +107,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Verbindungstest fehlgeschlagen.");
+                _logger.LogWarning(ex, "Connection test failed.");
                 return new TestConnectionResponse { Success = false, Message = ex.Message };
             }
         }
@@ -153,7 +153,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
         {
             if (_sync.IsRunning)
             {
-                return Conflict("Es laeuft bereits eine Synchronisierung.");
+                return Conflict("A sync is already running.");
             }
 
             _ = Task.Run(async () =>
@@ -164,7 +164,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Manuell gestarteter Sync fehlgeschlagen.");
+                    _logger.LogError(ex, "Manually started sync failed.");
                 }
             });
 
@@ -181,7 +181,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
         {
             if (!_sync.RequestStop())
             {
-                return NotFound("Es laeuft derzeit keine Synchronisierung.");
+                return NotFound("No sync is currently running.");
             }
 
             return Accepted();

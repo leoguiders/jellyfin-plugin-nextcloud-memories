@@ -1,23 +1,25 @@
 ---
 name: "Nextcloud Memories"
 guid: "b4a3f1d2-7c58-4a6e-9f21-6d0c8e3b57aa"
-version: "1.1.0.0"
+version: "1.1.1.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
-overview: "Spiegelt Fotos und Videos aus Nextcloud Memories in eine Jellyfin-Bibliothek."
+overview: "Mirrors photos and videos from Nextcloud Memories into a Jellyfin library."
 description: >
-  Synchronisiert Fotos, Alben und Videos aus der Nextcloud-App "Memories"
-  ueber die HTTP-API in ein lokales Cache-Verzeichnis und stellt dieses als
-  regulaere "Home Videos & Photos"-Bibliothek in Jellyfin bereit.
-  Ein gemeinsames Dateisystem zwischen Jellyfin und Nextcloud ist nicht erforderlich.
+  Synchronises photos, albums and videos from the Nextcloud app "Memories" through its
+  HTTP API into a local cache directory and exposes that directory as a regular
+  "Home Videos & Photos" library in Jellyfin. Jellyfin and Nextcloud do not need to
+  share a filesystem.
 category: "General"
 owner: "leoguiders"
 artifacts:
   - "Jellyfin.Plugin.NextcloudMemories.dll"
 changelog: >
-  1.1.0.0 - Index wird waehrend des Syncs regelmaessig gesichert, ein Abbruch
-  verwirft die geleistete Arbeit nicht mehr. Laufende Synchronisierung laesst
-  sich ueber die Konfigurationsseite und den neuen Endpunkt POST
-  /NextcloudMemories/Stop abbrechen.
-  1.0.0.0 - Erste Version: Zeitachse, Alben, Videos via .strm-Proxy,
-  Metadaten-Anreicherung, geplanter Sync.
+  1.1.1.0 - Code, configuration page and documentation translated to English.
+  Mirror directories renamed to Timeline and Albums; the next sync re-downloads
+  unless the old folders are renamed manually. CI can publish releases again.
+  1.1.0.0 - The index is checkpointed during the sync, so cancelling no longer
+  discards the work done so far. A running sync can be cancelled from the
+  configuration page or via POST /NextcloudMemories/Stop.
+  1.0.0.0 - Initial release: timeline, albums, videos via .strm proxy,
+  metadata enrichment, scheduled sync.

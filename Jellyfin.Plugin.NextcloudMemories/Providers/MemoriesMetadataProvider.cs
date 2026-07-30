@@ -147,7 +147,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Providers
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Detailmetadaten fuer {FileId} konnten nicht geladen werden.", fileId);
+                _logger.LogDebug(ex, "Could not load detailed metadata for {FileId}.", fileId);
             }
 
             return false;

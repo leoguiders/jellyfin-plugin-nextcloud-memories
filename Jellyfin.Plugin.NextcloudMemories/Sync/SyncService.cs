@@ -51,7 +51,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         {
             var text = string.Format(
                 CultureInfo.InvariantCulture,
-                "{0} neu, {1} unveraendert, {2} verknuepft, {3} entfernt, {4} Fehler, {5:F1} MB, {6:F0}s",
+                "{0} new, {1} unchanged, {2} linked, {3} removed, {4} failed, {5:F1} MB, {6:F0}s",
                 Downloaded,
                 Unchanged,
                 Linked,
@@ -74,8 +74,8 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
     /// </summary>
     public class SyncService
     {
-        private const string TimelineFolder = "Zeitachse";
-        private const string AlbumFolder = "Alben";
+        private const string TimelineFolder = "Timeline";
+        private const string AlbumFolder = "Albums";
 
         private readonly MemoriesApiClient _api;
         private readonly LibraryIndex _index;
@@ -131,7 +131,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 return false;
             }
 
-            _logger.LogInformation("Abbruch der laufenden Synchronisierung angefordert.");
+            _logger.LogInformation("Cancellation of the running sync requested.");
             cts.Cancel();
             return true;
         }
@@ -159,7 +159,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         {
             if (!await _runLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
             {
-                throw new InvalidOperationException("Es laeuft bereits eine Synchronisierung.");
+                throw new InvalidOperationException("A sync is already running.");
             }
 
             IsRunning = true;
@@ -193,10 +193,10 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 if (desired.Count == 0 && _index.Count > 0)
                 {
                     throw new InvalidOperationException(
-                        "Die Memories-API hat keine Dateien geliefert, obwohl bereits "
+                        "The Memories API returned no files even though "
                         + _index.Count.ToString(CultureInfo.InvariantCulture)
-                        + " Dateien gespiegelt sind. Der Sync wird abgebrochen, damit der Cache nicht "
-                        + "geloescht wird. Bitte Verbindung und Filter pruefen.");
+                        + " files are already mirrored. Aborting the sync so the cache is not "
+                        + "wiped. Please check the connection and the filters.");
                 }
 
                 result.Removed = RemoveOrphans(cacheRoot, desired.Keys, result);
@@ -219,7 +219,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
 
                 if (config.ScanAfterSync)
                 {
-                    _logger.LogInformation("Starte Jellyfin-Bibliotheksscan.");
+                    _logger.LogInformation("Queueing Jellyfin library scan.");
                     _libraryManager.QueueLibraryScan();
                 }
 
@@ -230,19 +230,19 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 Plugin.Instance!.SaveConfiguration();
 
                 progress?.Report(100);
-                _logger.LogInformation("Memories-Sync abgeschlossen: {Result}", result);
+                _logger.LogInformation("Memories sync finished: {Result}", result);
                 return result;
             }
             catch (OperationCanceledException)
             {
                 result.Duration = DateTime.UtcNow - started;
-                _logger.LogInformation("Memories-Sync abgebrochen: {Result}", result);
+                _logger.LogInformation("Memories sync cancelled: {Result}", result);
 
                 var config = Plugin.Instance?.Configuration;
                 if (config is not null)
                 {
                     config.LastSyncUtc = started.ToString("O", CultureInfo.InvariantCulture);
-                    config.LastSyncResult = "Abgebrochen - " + result;
+                    config.LastSyncResult = "Cancelled - " + result;
                     Plugin.Instance!.SaveConfiguration();
                 }
 
@@ -260,17 +260,17 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         {
             if (string.IsNullOrWhiteSpace(config.ServerUrl))
             {
-                throw new InvalidOperationException("Nextcloud-URL fehlt.");
+                throw new InvalidOperationException("The Nextcloud URL is missing.");
             }
 
             if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.AppPassword))
             {
-                throw new InvalidOperationException("Benutzername oder App-Passwort fehlt.");
+                throw new InvalidOperationException("User name or app password is missing.");
             }
 
             if (!config.EnableTimeline && !config.EnableAlbums)
             {
-                throw new InvalidOperationException("Weder Zeitachse noch Alben sind aktiviert.");
+                throw new InvalidOperationException("Neither the timeline nor albums are enabled.");
             }
         }
 
@@ -294,7 +294,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                     .OrderByDescending(d => d.DayId)
                     .ToList();
 
-                _logger.LogInformation("Zeitachse: {Count} Tage im gewaehlten Zeitraum.", filtered.Count);
+                _logger.LogInformation("Timeline: {Count} days within the selected range.", filtered.Count);
 
                 var done = 0;
                 foreach (var day in filtered)
@@ -325,7 +325,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                     .ConfigureAwait(false);
             }
 
-            _logger.LogInformation("Soll-Zustand: {Count} Dateien.", desired.Count);
+            _logger.LogInformation("Desired state: {Count} files.", desired.Count);
             return desired;
         }
 
@@ -344,8 +344,8 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Alben konnten nicht geladen werden.");
-                result.Warnings.Add("Alben konnten nicht geladen werden: " + ex.Message);
+                _logger.LogWarning(ex, "Could not load albums.");
+                result.Warnings.Add("Could not load albums: " + ex.Message);
                 return;
             }
 
@@ -356,7 +356,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 albums = albums.Where(a => set.Contains(a.GetFilterValue())).ToList();
             }
 
-            _logger.LogInformation("Alben: {Count} ausgewaehlt.", albums.Count);
+            _logger.LogInformation("Albums: {Count} selected.", albums.Count);
 
             var done = 0;
             foreach (var album in albums)
@@ -383,8 +383,8 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Album {Album} konnte nicht geladen werden.", albumName);
-                    result.Warnings.Add($"Album '{albumName}' uebersprungen: {ex.Message}");
+                    _logger.LogWarning(ex, "Could not load album {Album}.", albumName);
+                    result.Warnings.Add($"Album '{albumName}' skipped: {ex.Message}");
                     continue;
                 }
 
@@ -394,8 +394,8 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 {
                     var message = string.Format(
                         CultureInfo.InvariantCulture,
-                        "Album '{0}' liefert {1} Dateien, erwartet waren {2}. Der Filter-Parameter '{3}' passt "
-                        + "vermutlich nicht zu dieser Memories-Version. Album wird uebersprungen. "
+                        "Album '{0}' returned {1} files but {2} were expected. The filter parameter '{3}' most likely "
+                        + "does not match this Memories version. Skipping the album. "
                         + "Pruefe GET /apps/memories/api/describe.",
                         albumName,
                         files.Count,
@@ -452,7 +452,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Konnte {Path} nicht loeschen.", absolute);
+                        _logger.LogWarning(ex, "Could not delete {Path}.", absolute);
                         result.Failed++;
                     }
                 }
@@ -460,7 +460,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
 
             if (removed > 0)
             {
-                _logger.LogInformation("{Count} verwaiste Dateien entfernt.", removed);
+                _logger.LogInformation("Removed {Count} orphaned files.", removed);
             }
 
             return removed;
@@ -498,7 +498,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             {
                 var snapshot = entries.ToArray();
                 _logger.LogInformation(
-                    "Abbruch angefordert - sichere {Count} bereits verarbeitete Eintraege im Index.",
+                    "Cancellation requested - persisting {Count} already processed entries to the index.",
                     snapshot.Length);
                 await _index.MergeAsync(snapshot).ConfigureAwait(false);
                 throw;
@@ -521,7 +521,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Index-Checkpoint fehlgeschlagen.");
+                _logger.LogWarning(ex, "Index checkpoint failed.");
             }
             finally
             {
@@ -608,7 +608,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Datei {FileId} konnte nicht gespiegelt werden.", item.File.FileId);
+                    _logger.LogWarning(ex, "Could not mirror file {FileId}.", item.File.FileId);
                     lock (result)
                     {
                         result.Failed++;
@@ -662,7 +662,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Album-Verknuepfung {Path} fehlgeschlagen.", item.RelativePath);
+                    _logger.LogWarning(ex, "Album link {Path} failed.", item.RelativePath);
                     result.Failed++;
                 }
                 finally
@@ -690,7 +690,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Symlink nicht moeglich, kopiere stattdessen.");
+                    _logger.LogDebug(ex, "Symlink not possible, copying instead.");
                 }
             }
 
@@ -733,7 +733,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Zeitstempel fuer {Path} konnte nicht gesetzt werden.", path);
+                _logger.LogDebug(ex, "Could not set the timestamp for {Path}.", path);
             }
         }
 
@@ -752,7 +752,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Leeres Verzeichnis {Path} konnte nicht entfernt werden.", directory);
+                    _logger.LogDebug(ex, "Could not remove empty directory {Path}.", directory);
                 }
             }
         }
@@ -792,7 +792,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 };
 
                 _logger.LogInformation(
-                    "Lege Bibliothek '{Name}' fuer {Path} an.",
+                    "Creating library '{Name}' for {Path}.",
                     config.LibraryName,
                     cacheRoot);
 
@@ -802,9 +802,9 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Bibliothek konnte nicht automatisch angelegt werden.");
+                _logger.LogWarning(ex, "Could not create the library automatically.");
                 result.Warnings.Add(
-                    "Bibliothek konnte nicht automatisch angelegt werden, bitte manuell anlegen: " + ex.Message);
+                    "Could not create the library automatically, please create it manually: " + ex.Message);
             }
         }
 

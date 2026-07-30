@@ -59,7 +59,7 @@ namespace Jellyfin.Plugin.NextcloudMemories
 
         /// <inheritdoc />
         public override string Description =>
-            "Spiegelt Fotos, Alben und Videos aus Nextcloud Memories in eine Jellyfin-Bibliothek.";
+            "Mirrors photos, albums and videos from Nextcloud Memories into a Jellyfin library.";
 
         /// <inheritdoc />
         public IEnumerable<PluginPageInfo> GetPages()

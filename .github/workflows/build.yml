@@ -8,6 +8,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Required so the release step can create a GitHub release with the built ZIP.
+permissions:
+  contents: write
+
 env:
   PROJECT: Jellyfin.Plugin.NextcloudMemories/Jellyfin.Plugin.NextcloudMemories.csproj
   ASSEMBLY: Jellyfin.Plugin.NextcloudMemories.dll
@@ -38,7 +42,7 @@ jobs:
         run: |
           mkdir -p package
           cp "publish/${{ env.ASSEMBLY }}" package/
-          cp build.yaml package/ 2>/dev/null || true
+          cp meta.json package/
           cd package
           zip -r "../nextcloud-memories.zip" .
           cd ..
@@ -56,12 +60,12 @@ jobs:
         with:
           files: nextcloud-memories.zip
           body: |
-            Jellyfin-Plugin "Nextcloud Memories".
+            Jellyfin plugin "Nextcloud Memories".
 
-            Ziel-ABI: 10.11.0.0
-            MD5 der ZIP: `${{ env.MD5 }}`
+            Target ABI: 10.11.0.0
+            ZIP MD5: `${{ env.MD5 }}`
 
-            Installation: ZIP entpacken und den Ordner nach
-            `<jellyfin-config>/plugins/Nextcloud Memories_1.1.0.0/` kopieren, danach Jellyfin neu starten.
+            Installation: unpack the ZIP into
+            `<jellyfin-config>/plugins/Nextcloud Memories_<version>/`, then restart Jellyfin.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

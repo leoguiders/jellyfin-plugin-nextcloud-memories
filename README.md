@@ -1,96 +1,106 @@
 # Jellyfin Plugin: Nextcloud Memories
 
-Spiegelt Fotos, Alben und Videos aus der Nextcloud-App [Memories](https://memories.gallery/) in eine
-Jellyfin-Bibliothek. Jellyfin und Nextcloud müssen sich **kein** Dateisystem teilen — das Plugin
-spricht ausschließlich über HTTP mit Nextcloud.
+Mirrors photos, albums and videos from the Nextcloud app [Memories](https://memories.gallery/) into a
+Jellyfin library. Jellyfin and Nextcloud do **not** need to share a filesystem — the plugin talks to
+Nextcloud over HTTP only.
 
-> **Status:** v1.1, getestet gegen Jellyfin 10.11.11. Vor dem ersten Sync ein Backup der
-> Jellyfin-Konfiguration anlegen.
+> **Status:** v1.1.1, tested against Jellyfin 10.11.11. Take a backup of your Jellyfin configuration
+> before the first sync.
 
 ## Changelog
 
+**1.1.1.0**
+
+- Code, configuration page and documentation are now in English. Mirrored folders are named
+  `Timeline` and `Albums` — see the upgrade note below.
+- GitHub Actions workflow declares `contents: write` so tagged builds can publish a release.
+
 **1.1.0.0**
 
-- Der Index wird während des Syncs alle 200 Dateien gesichert. Ein Abbruch — auch durch einen
-  Neustart — verwirft die bereits geleistete Arbeit nicht mehr; der nächste Lauf setzt fort.
-- Eine laufende Synchronisierung lässt sich abbrechen: neuer Knopf auf der Konfigurationsseite
-  und Endpunkt `POST /NextcloudMemories/Stop`.
+- The index is checkpointed every 200 files during a sync. Cancelling — or restarting the server —
+  no longer discards the work done so far; the next run resumes.
+- A running sync can be cancelled: new button on the configuration page and
+  `POST /NextcloudMemories/Stop`.
 
-**1.0.0.0** — Erste Version.
+**1.0.0.0** — Initial release.
+
+> **Upgrading from 1.1.0.0 or earlier:** the mirror directories were renamed from `Zeitachse`/`Alben`
+> to `Timeline`/`Albums`. The next sync treats the old folders as orphans, deletes them and
+> re-downloads everything. If you want to avoid the re-download, rename the two directories inside
+> your cache root before starting the sync.
 
 ---
 
-## Wie es funktioniert
+## How it works
 
-Jellyfins Channels-API kann keine Fotos darstellen (`ChannelMediaType.Photo` wird intern nie zu einem
-`Photo`-Item aufgelöst, jedes Foto landet als `Video` in der Datenbank). Deshalb geht dieses Plugin
-einen anderen Weg:
+Jellyfin's channels API cannot represent photos — `ChannelMediaType.Photo` is never resolved into a
+`Photo` item, so every photo would end up as a `Video` in the database. This plugin takes a different
+route:
 
-1. Ein **Scheduled Task** holt über die Memories-API die Zeitachse und die Alben.
-2. Für jedes Foto wird die von Memories gerenderte **JPEG-Vorschau** in ein lokales Cache-Verzeichnis
-   heruntergeladen (Standard: 2048 px Kantenlänge). Der Dateiname enthält Aufnahmedatum und
-   Nextcloud-`fileid`, die Datei-`mtime` wird auf das Aufnahmedatum gesetzt.
-3. Videos werden standardmäßig als **`.strm`-Datei** abgelegt, die auf einen signierten
-   Streaming-Proxy im Plugin zeigt. Nextcloud-Zugangsdaten landen dadurch nie in der Jellyfin-Datenbank.
-4. Das Cache-Verzeichnis wird als reguläre **„Home Videos & Photos"-Bibliothek** in Jellyfin
-   registriert. Damit funktionieren Thumbnails, Slideshow, Favoriten und alle Clients ohne Sonderfälle.
-5. Ein Metadaten-Provider ergänzt Aufnahmedatum und — optional — Tags, Personen und Orte.
+1. A **scheduled task** enumerates the timeline and the albums through the Memories API.
+2. For each photo the **JPEG preview rendered by Memories** is downloaded into a local cache
+   directory. The file name carries the capture date and the Nextcloud `fileid`, and the file `mtime`
+   is set to the capture date.
+3. Videos are written as **`.strm` files** pointing at a signed streaming proxy inside the plugin, so
+   Nextcloud credentials never end up in the Jellyfin database.
+4. The cache directory is registered as a regular **Home Videos & Photos** library. Thumbnails,
+   slideshow, favourites and every client work without special cases.
+5. A metadata provider fills in the capture date and — optionally — tags, people and places.
 
 ```
-<Cache-Verzeichnis>/
-├── Zeitachse/
+<cache directory>/
+├── Timeline/
 │   └── 2024/
 │       └── 2024-06/
 │           ├── 2024-06-01_143022_1048576.jpg
 │           └── 2024-06-03_090511_1048701.strm
-└── Alben/
-    └── Sommerurlaub 2024/
-        └── 2024-06-01_143022_1048576.jpg   ← Symlink auf die Zeitachsen-Datei
+└── Albums/
+    └── Summer 2024/
+        └── 2024-06-01_143022_1048576.jpg   ← symlink to the timeline file
 ```
 
 ---
 
-## Voraussetzungen
+## Requirements
 
 | | |
 |---|---|
-| Jellyfin | 10.11.0 oder neuer (getestet mit 10.11.11) |
-| Nextcloud | mit installierter und eingerichteter App „Memories" |
-| Speicherplatz | abhängig von Nextclouds `preview_max_x` — bei 1024 px rund 75 KB pro Foto (100.000 Fotos ≈ 7,5 GB), bei 2048 px etwa das Vierfache |
-| Netzwerk | Jellyfin muss die Nextcloud-URL per HTTP(S) erreichen |
+| Jellyfin | 10.11.0 or newer (tested with 10.11.11) |
+| Nextcloud | with the Memories app installed and indexed |
+| Disk space | depends on Nextcloud's `preview_max_x`: roughly 75 KB per photo at 1024 px (100,000 photos ≈ 7.5 GB), about four times that at 2048 px |
+| Network | Jellyfin must be able to reach the Nextcloud URL over HTTP(S) |
 
 ---
 
 ## Installation
 
-### Variante A — Release-ZIP (empfohlen)
+### Option A — release ZIP (recommended)
 
-1. Aktuelles `nextcloud-memories.zip` von der
-   [Releases-Seite](https://github.com/leoguiders/jellyfin-plugin-nextcloud-memories/releases) laden.
-2. Jellyfin stoppen.
-3. ZIP entpacken und den Inhalt nach
-   `<jellyfin-config>/plugins/Nextcloud Memories_1.1.0.0/` kopieren. Typische Pfade:
+1. Download the latest `nextcloud-memories.zip` from the
+   [releases page](https://github.com/leoguiders/jellyfin-plugin-nextcloud-memories/releases).
+2. Stop Jellyfin.
+3. Unpack the ZIP into `<jellyfin-config>/plugins/Nextcloud Memories_1.1.1.0/`. Typical paths:
 
-   | Setup | Pfad |
+   | Setup | Path |
    |---|---|
-   | Linux (Paket) | `/var/lib/jellyfin/plugins/Nextcloud Memories_1.1.0.0/` |
-   | Docker (linuxserver) | `/config/plugins/Nextcloud Memories_1.1.0.0/` im Container |
-   | Docker (offiziell) | `/config/plugins/Nextcloud Memories_1.1.0.0/` im Container |
-   | Windows | `%ProgramData%\Jellyfin\Server\plugins\Nextcloud Memories_1.1.0.0\` |
+   | Linux (package) | `/var/lib/jellyfin/plugins/Nextcloud Memories_1.1.1.0/` |
+   | Docker (linuxserver) | `/config/plugins/Nextcloud Memories_1.1.1.0/` inside the container |
+   | Docker (official) | `/config/plugins/Nextcloud Memories_1.1.1.0/` inside the container |
+   | Windows | `%ProgramData%\Jellyfin\Server\plugins\Nextcloud Memories_1.1.1.0\` |
 
-   Der Ordner muss `Jellyfin.Plugin.NextcloudMemories.dll` **und** `meta.json` enthalten. Kopiere
-   ausschließlich diese beiden Dateien — die übrigen DLLs aus `publish/` bringt Jellyfin selbst mit,
-   Duplikate führen zu Ladefehlern.
+   The folder must contain `Jellyfin.Plugin.NextcloudMemories.dll` **and** `meta.json`. Copy only
+   those two files — the other DLLs in `publish/` ship with Jellyfin itself, and duplicates cause
+   load errors. Remove any older version folder of this plugin.
 
-4. Rechte prüfen — der Ordner muss dem Jellyfin-Benutzer gehören:
+4. Make sure the folder belongs to the Jellyfin user:
 
    ```bash
-   chown -R jellyfin:jellyfin "/var/lib/jellyfin/plugins/Nextcloud Memories_1.1.0.0"
+   chown -R jellyfin:jellyfin "/var/lib/jellyfin/plugins/Nextcloud Memories_1.1.1.0"
    ```
 
-5. Jellyfin starten. Unter **Dashboard → Plugins** sollte „Nextcloud Memories" erscheinen.
+5. Start Jellyfin. "Nextcloud Memories" should appear under **Dashboard → Plugins**.
 
-### Variante B — selbst bauen
+### Option B — build from source
 
 ```bash
 git clone https://github.com/leoguiders/jellyfin-plugin-nextcloud-memories.git
@@ -99,84 +109,83 @@ dotnet publish Jellyfin.Plugin.NextcloudMemories/Jellyfin.Plugin.NextcloudMemori
   -c Release -o publish
 ```
 
-Anschließend `publish/Jellyfin.Plugin.NextcloudMemories.dll` in den oben genannten Plugin-Ordner
-kopieren und Jellyfin neu starten. Benötigt das **.NET 9 SDK**.
+Then copy `publish/Jellyfin.Plugin.NextcloudMemories.dll` and `meta.json` into the plugin folder
+above and restart Jellyfin. Requires the **.NET 9 SDK**.
 
 ---
 
-## Nextcloud vorbereiten
+## Preparing Nextcloud
 
-Ein **App-Passwort** anlegen, nicht das normale Login-Passwort verwenden:
+Create an **app password** instead of using your login password:
 
-**Nextcloud → Einstellungen → Sicherheit → Geräte & Sitzungen → „Neues App-Passwort erstellen"**
+**Nextcloud → Settings → Security → Devices & sessions → "Create new app password"**
 
-Vorteile: funktioniert trotz aktivierter Zwei-Faktor-Authentisierung und lässt sich einzeln
-widerrufen, ohne andere Geräte auszusperren.
+App passwords work with two-factor authentication enabled and can be revoked individually without
+locking out your other devices.
 
 ---
 
-## Konfiguration
+## Configuration
 
 **Dashboard → Plugins → Nextcloud Memories**
 
-### Verbindung
+### Connection
 
-| Feld | Beschreibung |
+| Field | Description |
 |---|---|
-| Nextcloud-URL | z. B. `https://cloud.example.de` — ohne `/apps/memories` |
-| Benutzername | Nextcloud-Benutzername |
-| App-Passwort | siehe oben |
+| Nextcloud URL | e.g. `https://cloud.example.com` — without `/apps/memories` |
+| User name | Nextcloud user name |
+| App password | see above |
 
-Nach dem Speichern **„Verbindung testen"** klicken. Die Meldung nennt die Anzahl gefundener Tage und
-Dateien.
+Save, then click **Test connection**. The message reports the number of days and files found.
 
-### Bibliothek
+### Library
 
-| Feld | Standard | Beschreibung |
+| Field | Default | Description |
 |---|---|---|
-| Cache-Verzeichnis | `<plugin-data>/library` | Muss vom Jellyfin-Prozess beschreibbar sein |
-| Name der Bibliothek | `Nextcloud Fotos` | |
-| Bibliothek automatisch anlegen | an | Legt beim ersten Sync eine „Home Videos & Photos"-Bibliothek an |
-| Nach Sync scannen | an | Startet nach jedem Sync einen Bibliotheksscan |
+| Cache directory | `<plugin-data>/library` | Must be writable by the Jellyfin process |
+| Library name | `Nextcloud Fotos` | |
+| Create library automatically | on | Creates a Home Videos & Photos library on the first sync |
+| Scan after sync | on | Queues a library scan after every sync |
 
-### Inhalte
+### Content
 
-| Feld | Standard | Beschreibung |
+| Field | Default | Description |
 |---|---|---|
-| Zeitachse spiegeln | an | Ordnerbaum Jahr/Monat |
-| Alben spiegeln | an | Ein Ordner je Memories-Album |
-| Nur ab / bis Datum | leer | Begrenzt den Zeitraum, z. B. `2020-01-01` |
-| Album-Auswahl | alle | „Alben laden" klicken, dann gezielt auswählen |
+| Mirror timeline | on | Year/month folder tree |
+| Mirror albums | on | One folder per Memories album |
+| Only from / until date | empty | Limits the range, e.g. `2020-01-01` |
+| Album selection | all | Click "Load albums", then pick individually |
 
-### Dateien
+### Files
 
-| Feld | Standard | Beschreibung |
+| Field | Default | Description |
 |---|---|---|
-| Vorschaugröße | 2048 | Kantenlänge in Pixel |
-| Originale laden | aus | Experten-Option, siehe „Bekannte Grenzen" |
-| Videos | `.strm` | oder Original herunterladen / ignorieren |
-| Albumeinträge | Symlink | oder Kopie, falls das Dateisystem keine Symlinks kann |
-| Basis-URL dieses Servers | `http://127.0.0.1:8096` | Wird in `.strm`-Dateien geschrieben |
+| Preview size | 2048 | Match this to Nextcloud's `preview_max_x` |
+| Download originals | off | Expert option, see "Known limitations" |
+| Videos | `.strm` | or download originals / ignore |
+| Album entries | symlink | or copy, when the filesystem cannot do symlinks |
+| Base URL of this server | `http://127.0.0.1:8096` | Written into `.strm` files |
 
-### Erweitert
+### Advanced
 
-| Feld | Standard | Beschreibung |
+| Field | Default | Description |
 |---|---|---|
-| Parallele Downloads | 4 | |
-| Sync-Intervall | 12 h | 0 deaktiviert den automatischen Trigger |
-| HTTP-Timeout | 120 s | |
-| Album-Filterparameter | `albums` | siehe Troubleshooting |
-| Detailmetadaten | aus | Tags, Personen, Orte — ein Extra-Request pro Foto |
+| Parallel downloads | 4 | |
+| Sync interval | 12 h | 0 disables the default trigger |
+| HTTP timeout | 120 s | |
+| Album filter parameter | `albums` | see Troubleshooting |
+| Detailed metadata | off | Tags, people, places — one extra request per photo |
 
-Danach **„Jetzt synchronisieren"**. Der Fortschritt ist unter
-**Dashboard → Geplante Aufgaben → „Nextcloud Memories synchronisieren"** sichtbar.
+Then click **Sync now**. Progress is visible under
+**Dashboard → Scheduled Tasks → "Sync Nextcloud Memories"**.
 
 ---
 
 ## Docker
 
-Das Cache-Verzeichnis muss ein persistentes Volume sein, sonst ist nach jedem Container-Neustart
-alles weg:
+The cache directory has to be a persistent volume, otherwise everything is gone after a container
+restart:
 
 ```yaml
 services:
@@ -185,148 +194,152 @@ services:
     volumes:
       - ./config:/config
       - ./cache:/cache
-      - ./memories-mirror:/media/memories   # <- als Cache-Verzeichnis eintragen
+      - ./memories-mirror:/memories   # <- use this as the cache directory
 ```
 
-Im Plugin dann `/media/memories` als Cache-Verzeichnis setzen. Symlinks funktionieren innerhalb
-desselben Volumes problemlos; bei exotischen Dateisystemen auf `Kopie` umstellen.
+Enter `/memories` — the path **inside the container** — as the cache directory. Create the host
+directory beforehand and give it to the Jellyfin user, otherwise Docker creates it as `root:root`
+and the sync fails.
 
-Läuft Nextcloud im selben Docker-Netz, kann als Nextcloud-URL der interne Servicename verwendet
-werden (z. B. `http://nextcloud`) — das spart den Umweg über den Reverse Proxy.
+If Nextcloud runs on the same Docker network, the internal service name works as the Nextcloud URL
+(e.g. `http://nextcloud`), which avoids the detour through the reverse proxy.
 
 ---
 
-## Endpunkte des Plugins
+## Plugin endpoints
 
-| Methode | Pfad | Zweck |
+| Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/NextcloudMemories/TestConnection` | Verbindungstest |
-| `GET` | `/NextcloudMemories/Albums` | Albumliste |
-| `GET` | `/NextcloudMemories/Describe` | Rohantwort von `GET /apps/memories/api/describe` |
-| `POST` | `/NextcloudMemories/Sync` | Sync starten |
-| `POST` | `/NextcloudMemories/Stop` | laufenden Sync abbrechen |
+| `POST` | `/NextcloudMemories/TestConnection` | Connection test |
+| `GET` | `/NextcloudMemories/Albums` | Album list |
+| `GET` | `/NextcloudMemories/Describe` | Raw response of `GET /apps/memories/api/describe` |
+| `POST` | `/NextcloudMemories/Sync` | Start a sync |
+| `POST` | `/NextcloudMemories/Stop` | Cancel a running sync |
 | `GET` | `/NextcloudMemories/Status` | Status |
-| `GET` | `/NextcloudMemories/Stream/{fileId}?token=…` | Video-Proxy (anonym, HMAC-signiert) |
+| `GET` | `/NextcloudMemories/Stream/{fileId}?token=…` | Video proxy (anonymous, HMAC signed) |
 
-Alle außer `Stream` erfordern Administratorrechte.
+All except `Stream` require administrator rights.
 
 ---
 
 ## Troubleshooting
 
-**Alben bleiben leer oder enthalten die komplette Bibliothek**
+**Albums stay empty or contain the whole library**
 
-Der Query-Parameter zum Filtern der Zeitachse nach Album ist in Memories nicht versioniert und hat
-sich zwischen Versionen geändert. Das Plugin erkennt den Fall (Album liefert deutlich mehr Dateien
-als erwartet), überspringt das Album und schreibt eine Warnung ins Log. Vorgehen:
+The query parameter that filters the timeline by album is undocumented in Memories and has changed
+between versions. The plugin detects the failure — an album returning far more files than its item
+count — skips it and logs a warning. To fix it:
 
-1. `GET /NextcloudMemories/Describe` aufrufen (oder direkt
-   `https://<nextcloud>/apps/memories/api/describe`).
-2. Den passenden Parameternamen heraussuchen.
-3. Unter **Erweitert → Album-Filterparameter** eintragen.
+1. Call `GET /NextcloudMemories/Describe` (or `https://<nextcloud>/apps/memories/api/describe`).
+2. Find the correct parameter name.
+3. Enter it under **Advanced → Album filter parameter**.
 
-**Plugin-Einstellungen lassen sich nicht speichern**
+**Plugin settings will not save**
 
-Bekannter Jellyfin-10.11-Fehler hinter Reverse Proxys mit gesetzter Base-URL. Abhilfe: Dashboard
-direkt über die interne Adresse aufrufen (`http://<server>:8096`) oder die Base-URL temporär leeren.
+A known Jellyfin 10.11 issue behind reverse proxies with a base URL set. Open the dashboard through
+the internal address (`http://<server>:8096`) or temporarily clear the base URL.
 
-**Fotos ohne Vorschaubild**
+**Syncing is painfully slow (over 1 s per photo)**
 
-Meist HEIC oder RAW bei aktivierter Option „Originale laden". Die Option ausschalten — dann liefert
-Memories fertige JPEGs, die Jellyfin in jedem Fall darstellen kann.
-
-**Videos springen beim Vorspulen nicht sauber**
-
-`.strm`-Wiedergabe mit Range-Requests ist in Jellyfin nicht vollständig implementiert
-([jellyfin#13974](https://github.com/jellyfin/jellyfin/issues/13974)). Der Proxy reicht `Range`
-korrekt durch, das Verhalten hängt aber vom Client ab. Zuverlässigste Variante:
-**Videos → Originaldateien herunterladen**.
-
-**Jellyfin startet nicht mehr**
-
-Ab 10.11 verweigert Jellyfin den Start bei weniger als 2 GB freiem Speicher im Datenverzeichnis.
-Cache-Verzeichnis auf ein anderes Laufwerk legen oder Vorschaugröße/Zeitraum reduzieren.
-
-**Der Sync ist quälend langsam (über 1 s pro Foto)**
-
-Dann rendert Nextcloud jede Vorschau neu, statt sie aus dem Cache zu liefern. Häufigste Ursache: Die
-eingestellte Vorschaugröße passt nicht zu Nextclouds Deckelung. Prüfe
+Nextcloud is re-rendering every preview instead of serving it from cache. The most common cause is a
+preview size that does not match Nextcloud's cap. Check
 
 ```bash
 docker exec -u www-data nextcloud php occ config:system:get preview_max_x
 ```
 
-und setze die Vorschaugröße im Plugin auf **genau diesen Wert**. Höhere Werte liefern trotzdem nur
-die gedeckelte Auflösung, verfehlen aber den Cache. Welche Größe wirklich ankommt, verrät
+and set the plugin's preview size to **exactly that value**. Larger values still return the capped
+resolution but miss the cache. To see what actually arrives:
 
 ```bash
-file /pfad/zum/cache/Zeitachse/*/*/*.jpg | head -3
+file /path/to/cache/Timeline/*/*/*.jpg | head -3
 ```
 
-Zusätzlich lohnt die Nextcloud-App *Preview Generator*, die alle Vorschauen einmalig im Batch
-erzeugt. Danach antwortet der Endpunkt in Millisekunden statt Sekunden.
+The Nextcloud *Preview Generator* app is worth installing on top — it renders all previews once in a
+batch, after which the endpoint answers in milliseconds.
 
-**Der Scan dauert ewig**
+**Photos without thumbnails**
 
-Jellyfin skaliert bei sechsstelligen Foto-Zahlen schlecht. Zeitraum begrenzen, nur ausgewählte Alben
-spiegeln oder die Zeitachse deaktivieren.
+Usually HEIC or RAW with "Download originals" enabled. Turn the option off so Memories delivers
+ready-made JPEGs that Jellyfin can always render.
+
+**Seeking in videos is unreliable**
+
+`.strm` playback with range requests is incompletely implemented in Jellyfin
+([jellyfin#13974](https://github.com/jellyfin/jellyfin/issues/13974)). The proxy passes `Range`
+through correctly, but behaviour depends on the client. The reliable option is
+**Videos → download the originals**.
+
+**Jellyfin will not start**
+
+Since 10.11 Jellyfin refuses to start with less than 2 GB free in its data directory. Move the cache
+to another drive or reduce the preview size / date range.
+
+**Scanning takes forever**
+
+Jellyfin scales poorly with six-figure photo counts. Limit the date range, mirror selected albums
+only, or disable the timeline.
 
 **Logs**
 
-`Dashboard → Protokolle`, alle Meldungen des Plugins tragen den Kontext
-`Jellyfin.Plugin.NextcloudMemories`.
+`Dashboard → Logs`; all plugin messages carry the context `Jellyfin.Plugin.NextcloudMemories`. To
+silence the very chatty HTTP client logging, add this to `logging.json` under
+`Serilog.MinimumLevel.Override`:
+
+```json
+"System.Net.Http.HttpClient": "Warning"
+```
 
 ---
 
-## Bekannte Grenzen
+## Known limitations
 
-- **Doppelte Items.** Ein Foto, das in Zeitachse *und* Album liegt, erzeugt in Jellyfin zwei
-  `Photo`-Items. Das ist bei einer dateibasierten Bibliothek nicht vermeidbar. Wer das nicht will,
-  deaktiviert einen der beiden Zweige.
-- **Ein Nextcloud-Konto.** Das Plugin läuft mit genau einem Nextcloud-Benutzer. Alle Jellyfin-Nutzer
-  mit Zugriff auf die Bibliothek sehen dessen komplette Fotosammlung.
-- **Vorschauen enthalten kein EXIF.** Das Aufnahmedatum wird deshalb über `mtime` *und* den
-  Metadaten-Provider gesetzt. Kameradaten gehen verloren, wenn nicht „Originale laden" aktiv ist.
-- **Löschungen** in Nextcloud werden erst beim nächsten Sync sichtbar.
-- **Gesichter und Orte** landen als Tags am Item, nicht als eigene Navigation. Jellyfin hat keine
-  Foto-spezifische Personen- oder Kartenansicht.
-- **Memories-API ist unversioniert.** Ein Update der Nextcloud-App kann Feldnamen ändern.
-
----
-
-## Alternative ohne Plugin
-
-Wer einen WebDAV-Mount auf dem Jellyfin-Host einrichten kann (`rclone mount` oder `davfs2` auf
-`/remote.php/dav/files/<user>/Photos`), braucht dieses Plugin nicht: Jellyfin liest die Dateien dann
-direkt, ohne Cache und ohne doppelten Speicherverbrauch. Der Preis ist ein zusätzlicher Dienst
-außerhalb von Jellyfin und spürbar langsamere Scans.
+- **Duplicate items.** A photo present in both the timeline and an album produces two `Photo` items
+  in Jellyfin. That is unavoidable for a file-based library; disable one of the two branches if it
+  bothers you.
+- **One Nextcloud account.** The plugin runs as a single Nextcloud user. Every Jellyfin user with
+  access to the library sees that user's entire collection.
+- **Previews carry no EXIF.** The capture date is therefore set through both `mtime` and the metadata
+  provider. Camera details are lost unless "Download originals" is enabled.
+- **Deletions** in Nextcloud only surface on the next sync.
+- **Faces and places** become tags on the item, not a separate navigation. Jellyfin has no
+  photo-specific people or map view.
+- **The Memories API is unversioned.** An update of the Nextcloud app can change field names.
 
 ---
 
-## Entwicklung
+## Alternative without a plugin
+
+If you can set up a WebDAV mount on the Jellyfin host (`rclone mount` or `davfs2` against
+`/remote.php/dav/files/<user>/Photos`), you do not need this plugin: Jellyfin reads the files
+directly, without a cache and without duplicated storage. The cost is an extra service outside
+Jellyfin and noticeably slower scans.
+
+---
+
+## Development
 
 ```bash
 dotnet build Jellyfin.Plugin.NextcloudMemories/Jellyfin.Plugin.NextcloudMemories.csproj -c Debug
 ```
 
-| Datei | Inhalt |
+| File | Contents |
 |---|---|
-| `Plugin.cs` | Plugin-Einstiegspunkt, Konfigurationsseite |
-| `PluginServiceRegistrator.cs` | DI-Registrierung |
-| `Api/MemoriesApiClient.cs` | HTTP-Client für die Memories-API |
-| `Api/MemoriesController.cs` | Admin-Endpunkte der Konfigurationsseite |
-| `Sync/SyncService.cs` | Soll-Ist-Abgleich, Download, Verknüpfung, Cleanup |
-| `Sync/LibraryIndex.cs` | Persistenter Zustand (`fileid` ↔ Pfad ↔ etag) |
-| `Streaming/` | Signierter Video-Proxy |
-| `Providers/` | Metadaten-Anreicherung |
-| `Tasks/MemoriesSyncTask.cs` | Geplante Aufgabe |
+| `Plugin.cs` | Plugin entry point, configuration page |
+| `PluginServiceRegistrator.cs` | DI registration |
+| `Api/MemoriesApiClient.cs` | HTTP client for the Memories API |
+| `Api/MemoriesController.cs` | Admin endpoints used by the configuration page |
+| `Sync/SyncService.cs` | Diff, download, linking, cleanup |
+| `Sync/LibraryIndex.cs` | Persistent state (`fileid` ↔ path ↔ etag) |
+| `Streaming/` | Signed video proxy |
+| `Providers/` | Metadata enrichment |
+| `Tasks/MemoriesSyncTask.cs` | Scheduled task |
 
-Pull Requests willkommen. Bitte keine direkten Datenbankzugriffe ergänzen — ab Jellyfin 10.11 ist
-Raw-SQL nicht mehr erlaubt, und die Plugin-Datenbank-API gilt bis 10.12 als experimentell.
+Pull requests welcome. Please do not add direct database access — raw SQL is rejected by Jellyfin
+from 10.11 on, and the plugin database API is experimental until 10.12.
 
 ---
 
-## Lizenz
+## License
 
-GPL-3.0-only, passend zu Jellyfin. Nextcloud Memories steht unter AGPL-3.0 und wird ausschließlich
-über HTTP angesprochen.
+GPL-3.0-only, matching Jellyfin. Nextcloud Memories is AGPL-3.0 and is only ever contacted over HTTP.

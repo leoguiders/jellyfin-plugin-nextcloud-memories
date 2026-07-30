@@ -55,7 +55,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
             var baseUrl = (Config.ServerUrl ?? string.Empty).TrimEnd('/');
             if (string.IsNullOrEmpty(baseUrl))
             {
-                throw new InvalidOperationException("Nextcloud-URL ist nicht konfiguriert.");
+                throw new InvalidOperationException("The Nextcloud URL is not configured.");
             }
 
             var builder = new StringBuilder(baseUrl).Append("/apps/memories").Append(path);
@@ -128,7 +128,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
                 throw new MemoriesApiException(
                     string.Format(
                         CultureInfo.InvariantCulture,
-                        "{0} lieferte HTTP {1}. {2}",
+                        "{0} returned HTTP {1}. {2}",
                         url,
                         (int)response.StatusCode,
                         Truncate(body, 300)),
@@ -177,15 +177,15 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
             catch (Exception ex)
             {
                 describeAvailable = false;
-                _logger.LogDebug(ex, "GET /api/describe ist auf dieser Memories-Version nicht verfuegbar.");
+                _logger.LogDebug(ex, "GET /api/describe is not available on this Memories version.");
             }
 
             return string.Format(
                 CultureInfo.InvariantCulture,
-                "Verbindung ok. {0} Tage, {1} Dateien. /api/describe: {2}.",
+                "Connection OK. {0} days, {1} files. /api/describe: {2}.",
                 days.Count,
                 total,
-                describeAvailable ? "verfuegbar" : "nicht verfuegbar");
+                describeAvailable ? "available" : "unavailable");
         }
 
         /// <summary>
@@ -356,7 +356,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
                 throw new MemoriesApiException(
                     string.Format(
                         CultureInfo.InvariantCulture,
-                        "Download von {0} fehlgeschlagen: HTTP {1}.",
+                        "Download of {0} failed: HTTP {1}.",
                         url,
                         (int)response.StatusCode),
                     response.StatusCode);

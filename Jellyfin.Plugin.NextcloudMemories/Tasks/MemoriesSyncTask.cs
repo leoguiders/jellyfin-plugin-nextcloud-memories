@@ -28,14 +28,14 @@ namespace Jellyfin.Plugin.NextcloudMemories.Tasks
         }
 
         /// <inheritdoc />
-        public string Name => "Nextcloud Memories synchronisieren";
+        public string Name => "Sync Nextcloud Memories";
 
         /// <inheritdoc />
         public string Key => "NextcloudMemoriesSync";
 
         /// <inheritdoc />
         public string Description =>
-            "Holt neue und geaenderte Fotos, Alben und Videos aus Nextcloud Memories in das lokale Cache-Verzeichnis.";
+            "Fetches new and changed photos, albums and videos from Nextcloud Memories into the local cache directory.";
 
         /// <inheritdoc />
         public string Category => "Nextcloud Memories";
@@ -58,7 +58,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Tasks
                 || string.IsNullOrWhiteSpace(config.Username)
                 || string.IsNullOrWhiteSpace(config.AppPassword))
             {
-                _logger.LogInformation("Nextcloud Memories ist nicht konfiguriert, Sync wird uebersprungen.");
+                _logger.LogInformation("Nextcloud Memories is not configured, skipping the sync.");
                 progress.Report(100);
                 return;
             }

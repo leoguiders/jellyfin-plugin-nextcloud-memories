@@ -129,7 +129,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Index konnte nicht gelesen werden, starte mit leerem Index.");
+                        _logger.LogWarning(ex, "Could not read the index, starting with an empty one.");
                         _data = new IndexData();
                     }
                 }
