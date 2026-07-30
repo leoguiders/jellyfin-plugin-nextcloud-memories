@@ -1,0 +1,19 @@
+{
+  "guid": "b4a3f1d2-7c58-4a6e-9f21-6d0c8e3b57aa",
+  "name": "Nextcloud Memories",
+  "overview": "Spiegelt Fotos und Videos aus Nextcloud Memories in eine Jellyfin-Bibliothek.",
+  "description": "Synchronisiert Fotos, Alben und Videos aus der Nextcloud-App Memories ueber die HTTP-API in ein lokales Cache-Verzeichnis und stellt dieses als regulaere Home Videos & Photos-Bibliothek bereit.",
+  "owner": "leoguiders",
+  "category": "General",
+  "version": "1.0.0.0",
+  "targetAbi": "10.11.0.0",
+  "framework": "net9.0",
+  "timestamp": "2026-07-30T00:00:00Z",
+  "changelog": "Erste Version.",
+  "imagePath": "",
+  "assemblies": [
+    "Jellyfin.Plugin.NextcloudMemories.dll"
+  ],
+  "status": "Active",
+  "autoUpdate": false
+}

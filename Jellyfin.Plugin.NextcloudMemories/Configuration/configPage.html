@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Nextcloud Memories</title>
+</head>
+<body>
+<div id="NextcloudMemoriesConfigPage"
+     data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-checkbox,emby-select">
+    <div data-role="content">
+        <div class="content-primary">
+
+            <form id="NextcloudMemoriesConfigForm">
+
+                <h2>Verbindung</h2>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="url" id="ServerUrl" label="Nextcloud-URL" required />
+                    <div class="fieldDescription">Zum Beispiel https://cloud.example.de (ohne /apps/memories).</div>
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="Username" label="Benutzername" required />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="password" id="AppPassword" label="App-Passwort" required />
+                    <div class="fieldDescription">
+                        Nextcloud &rarr; Einstellungen &rarr; Sicherheit &rarr; Geräte &amp; Sitzungen &rarr;
+                        neues App-Passwort erzeugen. Nicht das Login-Passwort verwenden.
+                    </div>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="button" id="TestConnection" class="raised">
+                        <span>Verbindung testen</span>
+                    </button>
+                    <div id="TestResult" class="fieldDescription" style="margin-top:0.5em;"></div>
+                </div>
+
+                <h2>Bibliothek</h2>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="CacheRoot" label="Cache-Verzeichnis" required />
+                    <div class="fieldDescription">
+                        Wird vom Jellyfin-Prozess beschrieben und als Bibliothekspfad verwendet.
+                        Bei Docker muss dieser Pfad ein persistentes Volume sein.
+                    </div>
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="LibraryName" label="Name der Bibliothek" />
+                </div>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="AutoCreateLibrary" />
+                    <span>Bibliothek automatisch anlegen</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="ScanAfterSync" />
+                    <span>Nach jedem Sync einen Bibliotheksscan starten</span>
+                </label>
+
+                <h2>Inhalte</h2>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableTimeline" />
+                    <span>Zeitachse spiegeln (Jahr/Monat-Ordner)</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableAlbums" />
+                    <span>Alben spiegeln</span>
+                </label>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="DateFrom" label="Nur ab Datum (JJJJ-MM-TT)" />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="DateTo" label="Nur bis Datum (JJJJ-MM-TT)" />
+                </div>
+
+                <div style="margin-top:1em;">
+                    <button is="emby-button" type="button" id="LoadAlbums" class="raised">
+                        <span>Alben laden</span>
+                    </button>
+                    <div class="fieldDescription">
+                        Ohne Auswahl werden alle Alben gespiegelt.
+                    </div>
+                    <div id="AlbumList" style="margin-top:0.5em;"></div>
+                </div>
+
+                <h2>Dateien</h2>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="PreviewSize" label="Vorschaugröße in Pixel" min="256" max="8192" />
+                    <div class="fieldDescription">
+                        2048 ist ein guter Kompromiss. Höhere Werte brauchen deutlich mehr Speicherplatz.
+                    </div>
+                </div>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="DownloadOriginals" />
+                    <span>Originaldateien statt Vorschauen laden (HEIC/RAW werden ggf. nicht dargestellt)</span>
+                </label>
+
+                <div class="selectContainer">
+                    <select is="emby-select" id="VideoMode" label="Videos">
+                        <option value="Strm">Als .strm über den Jellyfin-Proxy streamen</option>
+                        <option value="Download">Originaldateien herunterladen</option>
+                        <option value="Skip">Videos ignorieren</option>
+                    </select>
+                </div>
+
+                <div class="selectContainer">
+                    <select is="emby-select" id="LinkMode" label="Albumeinträge">
+                        <option value="Symlink">Symlink auf die Zeitachsen-Datei</option>
+                        <option value="Copy">Kopie anlegen</option>
+                    </select>
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="url" id="JellyfinBaseUrl" label="Basis-URL dieses Jellyfin-Servers" />
+                    <div class="fieldDescription">
+                        Wird in die .strm-Dateien geschrieben. Standard: http://127.0.0.1:8096
+                    </div>
+                </div>
+
+                <h2>Erweitert</h2>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="ParallelDownloads" label="Parallele Downloads" min="1" max="16" />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="SyncIntervalHours" label="Sync-Intervall in Stunden" min="0" max="168" />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="RequestTimeoutSeconds" label="HTTP-Timeout in Sekunden" min="5" max="3600" />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="AlbumQueryParameter" label="Album-Filterparameter" />
+                    <div class="fieldDescription">
+                        Standard: albums. Falls Alben leer bleiben oder zu viele Dateien enthalten,
+                        prüfe GET /apps/memories/api/describe deiner Memories-Version.
+                    </div>
+                </div>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="FetchDetailedMetadata" />
+                    <span>Tags, Personen und Orte pro Foto abrufen (ein zusätzlicher Request je Foto)</span>
+                </label>
+
+                <div style="margin-top:1.5em;">
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Speichern</span>
+                    </button>
+                </div>
+
+                <h2>Status</h2>
+
+                <div id="StatusBox" class="fieldDescription"></div>
+
+                <div style="margin-top:0.5em;">
+                    <button is="emby-button" type="button" id="RunSync" class="raised">
+                        <span>Jetzt synchronisieren</span>
+                    </button>
+                    <button is="emby-button" type="button" id="RefreshStatus" class="raised">
+                        <span>Status aktualisieren</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = 'b4a3f1d2-7c58-4a6e-9f21-6d0c8e3b57aa';
+            var page = document.querySelector('#NextcloudMemoriesConfigPage');
+            var knownAlbums = [];
+
+            function val(id) { return page.querySelector('#' + id).value; }
+            function setVal(id, value) { page.querySelector('#' + id).value = value === null || value === undefined ? '' : value; }
+            function checked(id) { return page.querySelector('#' + id).checked; }
+            function setChecked(id, value) { page.querySelector('#' + id).checked = !!value; }
+
+            function selectedAlbums() {
+                var boxes = page.querySelectorAll('.albumCheckbox:checked');
+                return Array.prototype.map.call(boxes, function (b) { return b.getAttribute('data-album-id'); });
+            }
+
+            function renderAlbums(albums, selected) {
+                knownAlbums = albums;
+                var container = page.querySelector('#AlbumList');
+                container.innerHTML = '';
+                albums.forEach(function (album) {
+                    var label = document.createElement('label');
+                    label.className = 'checkboxContainer';
+                    var input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.className = 'albumCheckbox';
+                    input.setAttribute('data-album-id', album.Id);
+                    input.checked = selected.indexOf(album.Id) !== -1;
+                    var span = document.createElement('span');
+                    span.textContent = album.Name + ' (' + album.Count + ')';
+                    label.appendChild(input);
+                    label.appendChild(span);
+                    container.appendChild(label);
+                });
+            }
+
+            function loadStatus() {
+                return ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('NextcloudMemories/Status'),
+                    dataType: 'json'
+                }).then(function (status) {
+                    page.querySelector('#StatusBox').innerHTML =
+                        'Läuft gerade: <b>' + (status.IsRunning ? 'ja' : 'nein') + '</b><br/>' +
+                        'Gespiegelte Dateien: <b>' + status.MirroredFiles + '</b><br/>' +
+                        'Letzter Sync: <b>' + (status.LastSyncUtc || 'nie') + '</b><br/>' +
+                        'Ergebnis: ' + (status.LastSyncResult || '-') + '<br/>' +
+                        'Cache: <code>' + (status.CacheRoot || '-') + '</code>';
+                });
+            }
+
+            page.addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    setVal('ServerUrl', config.ServerUrl);
+                    setVal('Username', config.Username);
+                    setVal('AppPassword', config.AppPassword);
+                    setVal('CacheRoot', config.CacheRoot);
+                    setVal('LibraryName', config.LibraryName);
+                    setChecked('AutoCreateLibrary', config.AutoCreateLibrary);
+                    setChecked('ScanAfterSync', config.ScanAfterSync);
+                    setChecked('EnableTimeline', config.EnableTimeline);
+                    setChecked('EnableAlbums', config.EnableAlbums);
+                    setVal('DateFrom', config.DateFrom);
+                    setVal('DateTo', config.DateTo);
+                    setVal('PreviewSize', config.PreviewSize);
+                    setChecked('DownloadOriginals', config.DownloadOriginals);
+                    setVal('VideoMode', config.VideoMode);
+                    setVal('LinkMode', config.LinkMode);
+                    setVal('JellyfinBaseUrl', config.JellyfinBaseUrl);
+                    setVal('ParallelDownloads', config.ParallelDownloads);
+                    setVal('SyncIntervalHours', config.SyncIntervalHours);
+                    setVal('RequestTimeoutSeconds', config.RequestTimeoutSeconds);
+                    setVal('AlbumQueryParameter', config.AlbumQueryParameter);
+                    setChecked('FetchDetailedMetadata', config.FetchDetailedMetadata);
+
+                    if (config.SelectedAlbums && config.SelectedAlbums.length) {
+                        renderAlbums(config.SelectedAlbums.map(function (id) {
+                            return { Id: id, Name: id, Count: 0 };
+                        }), config.SelectedAlbums);
+                    }
+
+                    Dashboard.hideLoadingMsg();
+                    loadStatus();
+                });
+            });
+
+            page.querySelector('#NextcloudMemoriesConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    config.ServerUrl = val('ServerUrl');
+                    config.Username = val('Username');
+                    config.AppPassword = val('AppPassword');
+                    config.CacheRoot = val('CacheRoot');
+                    config.LibraryName = val('LibraryName');
+                    config.AutoCreateLibrary = checked('AutoCreateLibrary');
+                    config.ScanAfterSync = checked('ScanAfterSync');
+                    config.EnableTimeline = checked('EnableTimeline');
+                    config.EnableAlbums = checked('EnableAlbums');
+                    config.DateFrom = val('DateFrom');
+                    config.DateTo = val('DateTo');
+                    config.PreviewSize = parseInt(val('PreviewSize'), 10) || 2048;
+                    config.DownloadOriginals = checked('DownloadOriginals');
+                    config.VideoMode = val('VideoMode');
+                    config.LinkMode = val('LinkMode');
+                    config.JellyfinBaseUrl = val('JellyfinBaseUrl');
+                    config.ParallelDownloads = parseInt(val('ParallelDownloads'), 10) || 4;
+                    config.SyncIntervalHours = parseInt(val('SyncIntervalHours'), 10) || 0;
+                    config.RequestTimeoutSeconds = parseInt(val('RequestTimeoutSeconds'), 10) || 120;
+                    config.AlbumQueryParameter = val('AlbumQueryParameter') || 'albums';
+                    config.FetchDetailedMetadata = checked('FetchDetailedMetadata');
+
+                    if (knownAlbums.length) {
+                        config.SelectedAlbums = selectedAlbums();
+                    }
+
+                    ApiClient.updatePluginConfiguration(pluginId, config)
+                        .then(Dashboard.processPluginConfigurationUpdateResult);
+                });
+
+                return false;
+            });
+
+            page.querySelector('#TestConnection').addEventListener('click', function () {
+                var target = page.querySelector('#TestResult');
+                target.textContent = 'Teste ...';
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('NextcloudMemories/TestConnection'),
+                    dataType: 'json'
+                }).then(function (result) {
+                    target.textContent = (result.Success ? 'OK: ' : 'Fehler: ') + result.Message;
+                }, function () {
+                    target.textContent = 'Fehler: Anfrage fehlgeschlagen. Zuerst speichern.';
+                });
+            });
+
+            page.querySelector('#LoadAlbums').addEventListener('click', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    ApiClient.ajax({
+                        type: 'GET',
+                        url: ApiClient.getUrl('NextcloudMemories/Albums'),
+                        dataType: 'json'
+                    }).then(function (albums) {
+                        renderAlbums(albums, config.SelectedAlbums || []);
+                        Dashboard.hideLoadingMsg();
+                    }, function () {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Alben konnten nicht geladen werden. Verbindung zuerst speichern und testen.');
+                    });
+                });
+            });
+
+            page.querySelector('#RunSync').addEventListener('click', function () {
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('NextcloudMemories/Sync')
+                }).then(function () {
+                    Dashboard.alert('Sync gestartet. Fortschritt siehe Dashboard → Geplante Aufgaben und Protokolle.');
+                    setTimeout(loadStatus, 2000);
+                }, function () {
+                    Dashboard.alert('Sync konnte nicht gestartet werden.');
+                });
+            });
+
+            page.querySelector('#RefreshStatus').addEventListener('click', loadStatus);
+        })();
+    </script>
+</div>
+</body>
+</html>

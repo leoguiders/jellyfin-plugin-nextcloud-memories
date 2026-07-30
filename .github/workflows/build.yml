@@ -1,0 +1,67 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT: Jellyfin.Plugin.NextcloudMemories/Jellyfin.Plugin.NextcloudMemories.csproj
+  ASSEMBLY: Jellyfin.Plugin.NextcloudMemories.dll
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT }}
+
+      - name: Build
+        run: dotnet build ${{ env.PROJECT }} --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ${{ env.PROJECT }} --configuration Release --no-build --output publish
+
+      - name: Package
+        run: |
+          mkdir -p package
+          cp "publish/${{ env.ASSEMBLY }}" package/
+          cp build.yaml package/ 2>/dev/null || true
+          cd package
+          zip -r "../nextcloud-memories.zip" .
+          cd ..
+          echo "MD5=$(md5sum nextcloud-memories.zip | cut -d ' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcloud-memories
+          path: nextcloud-memories.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nextcloud-memories.zip
+          body: |
+            Jellyfin-Plugin "Nextcloud Memories".
+
+            Ziel-ABI: 10.11.0.0
+            MD5 der ZIP: `${{ env.MD5 }}`
+
+            Installation: ZIP entpacken und den Ordner nach
+            `<jellyfin-config>/plugins/Nextcloud Memories/` kopieren, danach Jellyfin neu starten.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
