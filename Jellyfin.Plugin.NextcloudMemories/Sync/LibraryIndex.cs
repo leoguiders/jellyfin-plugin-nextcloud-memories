@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,7 +29,7 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         /// <summary>Gets or sets the capture time in unix seconds.</summary>
         public long CaptureUnix { get; set; }
 
-        /// <summary>Gets or sets the preview size the local copy was produced with. 0 means "original".</summary>
+        /// <summary>Gets or sets the preview size the copy was produced with. 0 = original, -1 = .strm.</summary>
         public int PreviewSize { get; set; }
 
         /// <summary>Gets or sets a value indicating whether this entry is an album link to a timeline file.</summary>
@@ -150,11 +151,8 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             foreach (var entry in _data.Entries)
             {
                 _byPath[entry.RelativePath] = entry;
-                if (!entry.IsAlbumEntry)
-                {
-                    _byFileId[entry.FileId] = entry;
-                }
-                else if (!_byFileId.ContainsKey(entry.FileId))
+
+                if (!entry.IsAlbumEntry || !_byFileId.ContainsKey(entry.FileId))
                 {
                     _byFileId[entry.FileId] = entry;
                 }
@@ -162,7 +160,8 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         }
 
         /// <summary>
-        /// Replaces the whole index and writes it to disk.
+        /// Replaces the whole index and writes it to disk. Entries missing from
+        /// <paramref name="entries"/> are dropped, so this is only safe after a complete run.
         /// </summary>
         /// <param name="entries">The new entries.</param>
         /// <param name="lastSyncUtc">The sync timestamp.</param>
@@ -182,24 +181,11 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                     LastSyncUtc = lastSyncUtc,
                     Entries = new List<IndexEntry>(entries)
                 };
+
                 Reindex();
                 _loaded = true;
 
-                var path = IndexPath;
-                var directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                var tempPath = path + ".tmp";
-                await using (var stream = File.Create(tempPath))
-                {
-                    await JsonSerializer.SerializeAsync(stream, _data, _jsonOptions, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                File.Move(tempPath, path, overwrite: true);
+                await SaveUnlockedAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -208,10 +194,68 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         }
 
         /// <summary>
+        /// Merges entries into the existing index and persists it. Used for checkpoints during a
+        /// running sync so that an interrupted run does not throw away the work done so far.
+        /// </summary>
+        /// <param name="entries">The entries to add or update.</param>
+        /// <returns>A task.</returns>
+        public async Task MergeAsync(IReadOnlyCollection<IndexEntry> entries)
+        {
+            if (entries.Count == 0)
+            {
+                return;
+            }
+
+            // No cancellation token here on purpose: a checkpoint that runs while the sync is being
+            // cancelled still has to acquire the lock and finish writing.
+            await _lock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                // Build a new dictionary instead of mutating the live one: GetByPath() reads it
+                // without holding the lock.
+                var merged = new Dictionary<string, IndexEntry>(_byPath, StringComparer.OrdinalIgnoreCase);
+                foreach (var entry in entries)
+                {
+                    merged[entry.RelativePath] = entry;
+                }
+
+                _data.Entries = merged.Values.ToList();
+                Reindex();
+                _loaded = true;
+
+                await SaveUnlockedAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                _lock.Release();
+            }
+        }
+
+        private async Task SaveUnlockedAsync(CancellationToken cancellationToken)
+        {
+            var path = IndexPath;
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var tempPath = path + ".tmp";
+            await using (var stream = File.Create(tempPath))
+            {
+                await JsonSerializer.SerializeAsync(stream, _data, _jsonOptions, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            File.Move(tempPath, path, overwrite: true);
+        }
+
+        /// <summary>
         /// Gets a snapshot of the current entries keyed by relative path.
         /// </summary>
         /// <returns>The snapshot.</returns>
-        public IReadOnlyDictionary<string, IndexEntry> GetByPath() => _byPath;
+        public IReadOnlyDictionary<string, IndexEntry> GetByPath() =>
+            new Dictionary<string, IndexEntry>(_byPath, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Looks up an entry by Nextcloud file id.

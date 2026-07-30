@@ -172,6 +172,22 @@ namespace Jellyfin.Plugin.NextcloudMemories.Api
         }
 
         /// <summary>
+        /// Requests cancellation of a running sync. Already mirrored files are kept and recorded
+        /// in the index, so the next run resumes instead of starting over.
+        /// </summary>
+        /// <returns>Accepted, or NotFound when no sync is running.</returns>
+        [HttpPost("Stop")]
+        public ActionResult StopSync()
+        {
+            if (!_sync.RequestStop())
+            {
+                return NotFound("Es laeuft derzeit keine Synchronisierung.");
+            }
+
+            return Accepted();
+        }
+
+        /// <summary>
         /// Returns the current status.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>

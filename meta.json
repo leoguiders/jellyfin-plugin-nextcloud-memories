@@ -5,11 +5,11 @@
   "description": "Synchronisiert Fotos, Alben und Videos aus der Nextcloud-App Memories ueber die HTTP-API in ein lokales Cache-Verzeichnis und stellt dieses als regulaere Home Videos & Photos-Bibliothek bereit.",
   "owner": "leoguiders",
   "category": "General",
-  "version": "1.0.0.0",
+  "version": "1.1.0.0",
   "targetAbi": "10.11.0.0",
   "framework": "net9.0",
   "timestamp": "2026-07-30T00:00:00Z",
-  "changelog": "Erste Version.",
+  "changelog": "Index-Checkpoints waehrend des Syncs, abbrechbare Synchronisierung.",
   "imagePath": "",
   "assemblies": [
     "Jellyfin.Plugin.NextcloudMemories.dll"

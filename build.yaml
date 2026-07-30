@@ -1,7 +1,7 @@
 ---
 name: "Nextcloud Memories"
 guid: "b4a3f1d2-7c58-4a6e-9f21-6d0c8e3b57aa"
-version: "1.0.0.0"
+version: "1.1.0.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Spiegelt Fotos und Videos aus Nextcloud Memories in eine Jellyfin-Bibliothek."
@@ -15,5 +15,9 @@ owner: "leoguiders"
 artifacts:
   - "Jellyfin.Plugin.NextcloudMemories.dll"
 changelog: >
+  1.1.0.0 - Index wird waehrend des Syncs regelmaessig gesichert, ein Abbruch
+  verwirft die geleistete Arbeit nicht mehr. Laufende Synchronisierung laesst
+  sich ueber die Konfigurationsseite und den neuen Endpunkt POST
+  /NextcloudMemories/Stop abbrechen.
   1.0.0.0 - Erste Version: Zeitachse, Alben, Videos via .strm-Proxy,
   Metadaten-Anreicherung, geplanter Sync.

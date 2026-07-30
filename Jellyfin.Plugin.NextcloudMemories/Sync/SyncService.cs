@@ -107,9 +107,34 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         }
 
         /// <summary>
+        /// Number of processed files between two index checkpoints.
+        /// </summary>
+        private const int CheckpointInterval = 200;
+
+        private CancellationTokenSource? _activeCts;
+        private int _checkpointRunning;
+
+        /// <summary>
         /// Gets a value indicating whether a sync is currently running.
         /// </summary>
         public bool IsRunning { get; private set; }
+
+        /// <summary>
+        /// Requests cancellation of a running sync. Does nothing when no sync is active.
+        /// </summary>
+        /// <returns><c>true</c> when a running sync was signalled.</returns>
+        public bool RequestStop()
+        {
+            var cts = _activeCts;
+            if (cts is null || cts.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            _logger.LogInformation("Abbruch der laufenden Synchronisierung angefordert.");
+            cts.Cancel();
+            return true;
+        }
 
         private sealed class DesiredFile
         {
@@ -141,6 +166,10 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
             var started = DateTime.UtcNow;
             var result = new SyncResult();
 
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _activeCts = cts;
+            var token = cts.Token;
+
             try
             {
                 var config = Plugin.Instance?.Configuration
@@ -151,11 +180,11 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 var cacheRoot = Plugin.Instance!.ResolveCacheRoot();
                 Directory.CreateDirectory(cacheRoot);
 
-                await _index.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+                await _index.EnsureLoadedAsync(token).ConfigureAwait(false);
 
                 progress?.Report(1);
 
-                var desired = await CollectDesiredAsync(config, result, progress, cancellationToken)
+                var desired = await CollectDesiredAsync(config, result, progress, token)
                     .ConfigureAwait(false);
 
                 progress?.Report(15);
@@ -174,12 +203,12 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
 
                 progress?.Report(20);
 
-                var entries = await MaterialiseAsync(config, cacheRoot, desired, result, progress, cancellationToken)
+                var entries = await MaterialiseAsync(config, cacheRoot, desired, result, progress, token)
                     .ConfigureAwait(false);
 
                 PruneEmptyDirectories(cacheRoot);
 
-                await _index.ReplaceAsync(entries, DateTime.UtcNow, cancellationToken).ConfigureAwait(false);
+                await _index.ReplaceAsync(entries, DateTime.UtcNow, token).ConfigureAwait(false);
 
                 progress?.Report(97);
 
@@ -204,8 +233,24 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 _logger.LogInformation("Memories-Sync abgeschlossen: {Result}", result);
                 return result;
             }
+            catch (OperationCanceledException)
+            {
+                result.Duration = DateTime.UtcNow - started;
+                _logger.LogInformation("Memories-Sync abgebrochen: {Result}", result);
+
+                var config = Plugin.Instance?.Configuration;
+                if (config is not null)
+                {
+                    config.LastSyncUtc = started.ToString("O", CultureInfo.InvariantCulture);
+                    config.LastSyncResult = "Abgebrochen - " + result;
+                    Plugin.Instance!.SaveConfiguration();
+                }
+
+                throw;
+            }
             finally
             {
+                _activeCts = null;
                 IsRunning = false;
                 _runLock.Release();
             }
@@ -431,12 +476,10 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
         {
             var known = _index.GetByPath();
             var entries = new ConcurrentBag<IndexEntry>();
-            var previewSize = config.DownloadOriginals ? 0 : config.PreviewSize;
 
             var primaries = desired.Values.Where(d => !d.IsLink).ToList();
             var links = desired.Values.Where(d => d.IsLink).ToList();
 
-            var processed = 0;
             var total = Math.Max(primaries.Count + links.Count, 1);
 
             var options = new ParallelOptions
@@ -444,6 +487,63 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 MaxDegreeOfParallelism = Math.Clamp(config.ParallelDownloads, 1, 16),
                 CancellationToken = cancellationToken
             };
+
+            try
+            {
+                await MaterialiseCoreAsync(
+                    config, cacheRoot, known, entries, primaries, links, result, progress, options, total, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                var snapshot = entries.ToArray();
+                _logger.LogInformation(
+                    "Abbruch angefordert - sichere {Count} bereits verarbeitete Eintraege im Index.",
+                    snapshot.Length);
+                await _index.MergeAsync(snapshot).ConfigureAwait(false);
+                throw;
+            }
+
+            return entries.ToList();
+        }
+
+        private async Task CheckpointAsync(ConcurrentBag<IndexEntry> entries)
+        {
+            // Only one checkpoint at a time; skipping is harmless because the next one catches up.
+            if (Interlocked.CompareExchange(ref _checkpointRunning, 1, 0) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                await _index.MergeAsync(entries.ToArray()).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Index-Checkpoint fehlgeschlagen.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _checkpointRunning, 0);
+            }
+        }
+
+        private async Task MaterialiseCoreAsync(
+            PluginConfiguration config,
+            string cacheRoot,
+            IReadOnlyDictionary<string, IndexEntry> known,
+            ConcurrentBag<IndexEntry> entries,
+            List<DesiredFile> primaries,
+            List<DesiredFile> links,
+            SyncResult result,
+            IProgress<double>? progress,
+            ParallelOptions options,
+            int total,
+            CancellationToken cancellationToken)
+        {
+            var previewSize = config.DownloadOriginals ? 0 : config.PreviewSize;
+            var processed = 0;
 
             await Parallel.ForEachAsync(primaries, options, async (item, token) =>
             {
@@ -518,6 +618,11 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                 {
                     var current = Interlocked.Increment(ref processed);
                     progress?.Report(20 + (75d * current / total));
+
+                    if (current % CheckpointInterval == 0)
+                    {
+                        await CheckpointAsync(entries).ConfigureAwait(false);
+                    }
                 }
             }).ConfigureAwait(false);
 
@@ -566,8 +671,6 @@ namespace Jellyfin.Plugin.NextcloudMemories.Sync
                     progress?.Report(20 + (75d * current / total));
                 }
             }
-
-            return entries.ToList();
         }
 
         private void CreateLink(PluginConfiguration config, string linkPath, string targetPath)

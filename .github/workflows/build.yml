@@ -62,6 +62,6 @@ jobs:
             MD5 der ZIP: `${{ env.MD5 }}`
 
             Installation: ZIP entpacken und den Ordner nach
-            `<jellyfin-config>/plugins/Nextcloud Memories/` kopieren, danach Jellyfin neu starten.
+            `<jellyfin-config>/plugins/Nextcloud Memories_1.1.0.0/` kopieren, danach Jellyfin neu starten.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

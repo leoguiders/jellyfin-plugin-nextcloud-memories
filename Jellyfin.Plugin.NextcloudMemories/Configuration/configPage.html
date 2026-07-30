@@ -171,6 +171,9 @@
                     <button is="emby-button" type="button" id="RunSync" class="raised">
                         <span>Jetzt synchronisieren</span>
                     </button>
+                    <button is="emby-button" type="button" id="StopSync" class="raised">
+                        <span>Synchronisierung abbrechen</span>
+                    </button>
                     <button is="emby-button" type="button" id="RefreshStatus" class="raised">
                         <span>Status aktualisieren</span>
                     </button>
@@ -345,6 +348,19 @@
                     setTimeout(loadStatus, 2000);
                 }, function () {
                     Dashboard.alert('Sync konnte nicht gestartet werden.');
+                });
+            });
+
+            page.querySelector('#StopSync').addEventListener('click', function () {
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('NextcloudMemories/Stop')
+                }).then(function () {
+                    Dashboard.alert('Abbruch angefordert. Bereits geladene Dateien bleiben erhalten, ' +
+                        'der nächste Lauf setzt dort fort.');
+                    setTimeout(loadStatus, 3000);
+                }, function () {
+                    Dashboard.alert('Es läuft derzeit keine Synchronisierung.');
                 });
             });
 

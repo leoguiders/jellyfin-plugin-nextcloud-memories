@@ -4,8 +4,19 @@ Spiegelt Fotos, Alben und Videos aus der Nextcloud-App [Memories](https://memori
 Jellyfin-Bibliothek. Jellyfin und Nextcloud müssen sich **kein** Dateisystem teilen — das Plugin
 spricht ausschließlich über HTTP mit Nextcloud.
 
-> **Status:** v1.0, getestet gegen Jellyfin 10.11.11. Vor dem ersten Sync ein Backup der
+> **Status:** v1.1, getestet gegen Jellyfin 10.11.11. Vor dem ersten Sync ein Backup der
 > Jellyfin-Konfiguration anlegen.
+
+## Changelog
+
+**1.1.0.0**
+
+- Der Index wird während des Syncs alle 200 Dateien gesichert. Ein Abbruch — auch durch einen
+  Neustart — verwirft die bereits geleistete Arbeit nicht mehr; der nächste Lauf setzt fort.
+- Eine laufende Synchronisierung lässt sich abbrechen: neuer Knopf auf der Konfigurationsseite
+  und Endpunkt `POST /NextcloudMemories/Stop`.
+
+**1.0.0.0** — Erste Version.
 
 ---
 
@@ -45,7 +56,7 @@ einen anderen Weg:
 |---|---|
 | Jellyfin | 10.11.0 oder neuer (getestet mit 10.11.11) |
 | Nextcloud | mit installierter und eingerichteter App „Memories" |
-| Speicherplatz | ca. 300–600 KB pro Foto bei 2048 px — 100.000 Fotos ≈ 30–60 GB |
+| Speicherplatz | abhängig von Nextclouds `preview_max_x` — bei 1024 px rund 75 KB pro Foto (100.000 Fotos ≈ 7,5 GB), bei 2048 px etwa das Vierfache |
 | Netzwerk | Jellyfin muss die Nextcloud-URL per HTTP(S) erreichen |
 
 ---
@@ -58,19 +69,23 @@ einen anderen Weg:
    [Releases-Seite](https://github.com/leoguiders/jellyfin-plugin-nextcloud-memories/releases) laden.
 2. Jellyfin stoppen.
 3. ZIP entpacken und den Inhalt nach
-   `<jellyfin-config>/plugins/Nextcloud Memories/` kopieren. Typische Pfade:
+   `<jellyfin-config>/plugins/Nextcloud Memories_1.1.0.0/` kopieren. Typische Pfade:
 
    | Setup | Pfad |
    |---|---|
-   | Linux (Paket) | `/var/lib/jellyfin/plugins/Nextcloud Memories/` |
-   | Docker (linuxserver) | `/config/plugins/Nextcloud Memories/` im Container |
-   | Docker (offiziell) | `/config/plugins/Nextcloud Memories/` im Container |
-   | Windows | `%ProgramData%\Jellyfin\Server\plugins\Nextcloud Memories\` |
+   | Linux (Paket) | `/var/lib/jellyfin/plugins/Nextcloud Memories_1.1.0.0/` |
+   | Docker (linuxserver) | `/config/plugins/Nextcloud Memories_1.1.0.0/` im Container |
+   | Docker (offiziell) | `/config/plugins/Nextcloud Memories_1.1.0.0/` im Container |
+   | Windows | `%ProgramData%\Jellyfin\Server\plugins\Nextcloud Memories_1.1.0.0\` |
+
+   Der Ordner muss `Jellyfin.Plugin.NextcloudMemories.dll` **und** `meta.json` enthalten. Kopiere
+   ausschließlich diese beiden Dateien — die übrigen DLLs aus `publish/` bringt Jellyfin selbst mit,
+   Duplikate führen zu Ladefehlern.
 
 4. Rechte prüfen — der Ordner muss dem Jellyfin-Benutzer gehören:
 
    ```bash
-   chown -R jellyfin:jellyfin "/var/lib/jellyfin/plugins/Nextcloud Memories"
+   chown -R jellyfin:jellyfin "/var/lib/jellyfin/plugins/Nextcloud Memories_1.1.0.0"
    ```
 
 5. Jellyfin starten. Unter **Dashboard → Plugins** sollte „Nextcloud Memories" erscheinen.
@@ -189,6 +204,7 @@ werden (z. B. `http://nextcloud`) — das spart den Umweg über den Reverse Prox
 | `GET` | `/NextcloudMemories/Albums` | Albumliste |
 | `GET` | `/NextcloudMemories/Describe` | Rohantwort von `GET /apps/memories/api/describe` |
 | `POST` | `/NextcloudMemories/Sync` | Sync starten |
+| `POST` | `/NextcloudMemories/Stop` | laufenden Sync abbrechen |
 | `GET` | `/NextcloudMemories/Status` | Status |
 | `GET` | `/NextcloudMemories/Stream/{fileId}?token=…` | Video-Proxy (anonym, HMAC-signiert) |
 
@@ -230,6 +246,25 @@ korrekt durch, das Verhalten hängt aber vom Client ab. Zuverlässigste Variante
 
 Ab 10.11 verweigert Jellyfin den Start bei weniger als 2 GB freiem Speicher im Datenverzeichnis.
 Cache-Verzeichnis auf ein anderes Laufwerk legen oder Vorschaugröße/Zeitraum reduzieren.
+
+**Der Sync ist quälend langsam (über 1 s pro Foto)**
+
+Dann rendert Nextcloud jede Vorschau neu, statt sie aus dem Cache zu liefern. Häufigste Ursache: Die
+eingestellte Vorschaugröße passt nicht zu Nextclouds Deckelung. Prüfe
+
+```bash
+docker exec -u www-data nextcloud php occ config:system:get preview_max_x
+```
+
+und setze die Vorschaugröße im Plugin auf **genau diesen Wert**. Höhere Werte liefern trotzdem nur
+die gedeckelte Auflösung, verfehlen aber den Cache. Welche Größe wirklich ankommt, verrät
+
+```bash
+file /pfad/zum/cache/Zeitachse/*/*/*.jpg | head -3
+```
+
+Zusätzlich lohnt die Nextcloud-App *Preview Generator*, die alle Vorschauen einmalig im Batch
+erzeugt. Danach antwortet der Endpunkt in Millisekunden statt Sekunden.
 
 **Der Scan dauert ewig**
 
